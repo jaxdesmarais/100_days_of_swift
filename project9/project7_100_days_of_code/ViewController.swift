@@ -11,6 +11,7 @@ import UIKit
 class ViewController: UIViewController {
     let tableView = UITableView()
     let searchController = UISearchController(searchResultsController: nil)
+    
     var safeArea: UILayoutGuide!
     var petitions: [Petition] = []
     var filteredPetitions: [Petition] = []
@@ -32,26 +33,30 @@ class ViewController: UIViewController {
         searchController.hidesNavigationBarDuringPresentation = false
         
         setupTableView()
-        createTabBarController()
+        performSelector(inBackground: #selector(fetchJSON), with: nil)
+    }
         
+    @objc func fetchJSON() {
         let urlString: String
             
-        if navigationController?.tabBarItem.tag == 0 {
+        if tabBarController?.selectedIndex == 0 {
            urlString = "https://www.hackingwithswift.com/samples/petitions-1.json"
+            tableView.reloadData()
         } else {
             urlString = "https://www.hackingwithswift.com/samples/petitions-2.json"
+            tableView.reloadData()
         }
         
-        if let url = URL(string: urlString) {
-            if let data = try? Data(contentsOf: url) {
-                parse(json: data)
-                return
+            if let url = URL(string: urlString) {
+                if let data = try? Data(contentsOf: url) {
+                    parse(json: data)
+                    return
+                }
             }
-        }
-        showError()
+        performSelector(onMainThread: #selector(showError), with: nil, waitUntilDone: false)
     }
     
-    func showError() {
+    @objc func showError() {
         let ac = UIAlertController(title: "Loading error", message: "There was an error loading the feed. Please check your connection and try again.", preferredStyle: .alert)
         ac.addAction(UIAlertAction(title: "OK", style: .default))
         present(ac, animated: true)
@@ -62,32 +67,21 @@ class ViewController: UIViewController {
         
         if let jsonPetitions = try? decoder.decode(Petitions.self, from: json) {
             petitions = jsonPetitions.results
-            tableView.reloadData()
+            tableView.performSelector(onMainThread: #selector(UITableView.reloadData), with: nil, waitUntilDone: false)
+        } else {
+            performSelector(onMainThread: #selector(showError), with: nil, waitUntilDone: false)
         }
     }
     
 	func setupTableView() {
-		view.addSubview(tableView)
+        view.addSubview(tableView)
    		tableView.translatesAutoresizingMaskIntoConstraints = false
         tableView.topAnchor.constraint(equalTo: safeArea.topAnchor).isActive = true
    		tableView.leftAnchor.constraint(equalTo: view.leftAnchor).isActive = true
    		tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor).isActive = true
    		tableView.rightAnchor.constraint(equalTo: view.rightAnchor).isActive = true
-       tableView.register(PetitionTableViewCell.self, forCellReuseIdentifier: reuseIdentifier)
+       	tableView.register(PetitionTableViewCell.self, forCellReuseIdentifier: reuseIdentifier)
 	}
-    
-    func createTabBarController() {
-        let tabBarController = UITabBarController()
-        
-        let mostRecentViewController = UIViewController()
-        mostRecentViewController.tabBarItem = UITabBarItem(tabBarSystemItem: .mostRecent, tag: 0)
-        
-        let topRatedViewController = UIViewController()
-        topRatedViewController.tabBarItem = UITabBarItem(tabBarSystemItem: .topRated, tag: 1)
-        
-        tabBarController.viewControllers = [mostRecentViewController, topRatedViewController]
-        self.view.addSubview(tabBarController.view)
-    }
     
     @objc func showCredits() {
         let ac = UIAlertController(title: "Credits", message: "This data comes from the We The People API of the Whitehouse", preferredStyle: .alert)
@@ -101,10 +95,8 @@ class ViewController: UIViewController {
     
     func updateSearchResults(for searchController: UISearchController) {
         if let searchText = searchController.searchBar.text {
-            DispatchQueue.global(qos: .background).async { [weak self] in
-                self?.filterPetitions(for: searchText)
-            }
-            tableView.performSelector(onMainThread: #selector(UITableView.reloadData), with: nil, waitUntilDone: false)
+            filterPetitions(for: searchText)
+            tableView.reloadData()
         }
     }
 }
@@ -124,10 +116,10 @@ extension ViewController: UITableViewDataSource, UITableViewDelegate, UISearchRe
     return cell
   }
     
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+	func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let vc = DetailsViewController()
         vc.detailItem = petitions[indexPath.row]
-        self.navigationController?.pushViewController(vc, animated: true)
+        navigationController?.pushViewController(vc, animated: true)
     }
 }
 

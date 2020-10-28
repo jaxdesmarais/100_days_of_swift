@@ -24,17 +24,20 @@ class ViewController: UIViewController {
         tableView.dataSource = self
         
 		setupTableView()
-        
+        performSelector(inBackground: #selector(loadData), with: nil)
+    }
+
+    @objc func loadData() {
         let fm = FileManager.default
-        let path = Bundle.main.resourcePath!
+        let path = Bundle.main.resourcePath! 
         let items = try! fm.contentsOfDirectory(atPath: path)
 
         for item in items.sorted() {
             if item.hasPrefix("nssl") {
-                pictures.append(item)
+                self.pictures.append(item)
+                tableView.performSelector(onMainThread: #selector(UITableView.reloadData), with: nil, waitUntilDone: false)
             }
         }
-        print(pictures)
     }
     
     func setupTableView() {
